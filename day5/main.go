@@ -99,6 +99,52 @@ func runProgram(numbers []int) []int {
 			val := numbers[firstIdx]
 			fmt.Printf("!!!! Instruction Output: %d\n", val)
 			i += 2
+
+		case 5:
+			first := get(numbers, i+1, getMode(modes, 0))
+			second := get(numbers, i+2, getMode(modes, 1))
+
+			if first != 0 {
+				i = second
+			} else {
+				i += 3
+			}
+
+		case 6:
+			first := get(numbers, i+1, getMode(modes, 0))
+			second := get(numbers, i+2, getMode(modes, 1))
+
+			if first == 0 {
+				i = second
+			} else {
+				i += 3
+			}
+
+		case 7:
+			first := get(numbers, i+1, getMode(modes, 0))
+			second := get(numbers, i+2, getMode(modes, 1))
+			resultIdx := numbers[i + 3]
+
+			if first < second {
+				numbers[resultIdx] = 1
+			} else {
+				numbers[resultIdx] = 0
+			}
+
+			i += 4
+
+		case 8:
+			first := get(numbers, i+1, getMode(modes, 0))
+			second := get(numbers, i+2, getMode(modes, 1))
+			resultIdx := numbers[i + 3]
+
+			if first == second {
+				numbers[resultIdx] = 1
+			} else {
+				numbers[resultIdx] = 0
+			}
+
+			i += 4
 			
 		case 99:
 			return numbers
