@@ -20,7 +20,7 @@ type wire struct {
 	length  int
 }
 
-const size int = 20
+const size int = 25500
 
 func move(actions []string) [][]wire {
 	grid := make([][]wire, size)
@@ -83,7 +83,7 @@ func move(actions []string) [][]wire {
 }
 
 func main() {
-	file, _ := os.Open("lol.txt")
+	file, _ := os.Open("input.txt")
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
@@ -95,13 +95,14 @@ func main() {
 
 	grid := make([][][]wire, 2)
 	sum := make([][]int, size)
+	length := make([][]int, size)
 	for i, _ := range sum {
 		sum[i] = make([]int, size)
+		length[i] = make([]int, size)
 	}
 
 	inter := []intersection{}
 
-	length := 0
 	for i, line := range lines {
 		l := strings.FieldsFunc(line, func(c rune) bool {
 		 	return c == ','
@@ -112,14 +113,14 @@ func main() {
 		for i, col := range grid[i] {
 			for j, row := range col {
 				sum[i][j] += row.visited
+				length[i][j] += row.length
+
 				if sum[i][j] > 1 {
-					length += row.length
-					fmt.Printf("length: %d\n", length)
 					inter = append(inter,
 						intersection{
 							x: i-size/2,
 							y: j-size/2,
-							steps: row.length,
+							steps: length[i][j],
 						})
 				}
 				//fmt.Printf("(%2d,%2d) %v ", i,j,row)
@@ -129,16 +130,16 @@ func main() {
 		}
 	}
 
-	smallest := 10000.0
+	smallest := intersection{steps: 100000000}
 	for _, i := range inter {
 		dist := math.Abs(float64(i.x)) + math.Abs(float64(i.y))
-		if dist < smallest {
-			smallest = dist
+		if i.steps < smallest.steps {
+			smallest = i
 		}
 		fmt.Printf("Intersection %v dist: %f\n", i, dist)
 	}
 
-	fmt.Printf("Smallest: %f\n", smallest)
+	fmt.Printf("Smallest: %v\n", smallest)
 	
 	// for _, col := range sum {
 	// 	for _, row := range col {
