@@ -7,65 +7,31 @@ import (
 	"os"
 )
 
+type pair struct {
+	left  string
+	right string
+}
+
 type node struct {
 	planet   string
 	children []*node
 	depth    int
 }
 
-
-func printNode(root *node) {
-	fmt.Printf("Node %s Children: ", root.planet)
-	for _, c := range root.children {
-		fmt.Printf("%s ", c.planet)
-	}
-	fmt.Println()
-}
-
-func printTree(root *node) {
-	if root == nil {
-		return
-	}
-
-	for _, c := range root.children {
-		printNode(c)
-		printTree(c)
-	}
-}
-
-func getDepth(root *node, planet string) int {
-	if root == nil {
-		return -1
-	}
-
-	for _, c := range root.children {
-		fmt.Printf("Checking %s == %s\n", c.planet, planet)
-		//printNode(c)
-		
-		if c.planet == planet {
-			return c.depth
-		}
-		
-		return getDepth(c, planet)
-	}
-
-	return root.depth
-}
-
 func getNode(root *node, planet string, depth int) (*node, int) {
-	if root == nil {
-		return nil, depth
-	}
-
 	if root.planet == planet {
 		return root, depth
 	}
 
 	for _, child := range root.children {
-		return getNode(child, planet, depth + 1)
+		result, d := getNode(child, planet, depth + 1)
+
+		if result != nil {
+			return result, d
+		}
 	}
 
-	return root, depth
+	return nil, depth
 }
 
 func AddChild(root *node, parent, child string) {
@@ -78,10 +44,8 @@ func AddChild(root *node, parent, child string) {
 			depth: depth + 1,
 		}
 
-		fmt.Printf("Adding %s to %s\n", child, n.planet)
+		fmt.Printf("Adding %s under %s\n", child, parent)
 		n.children = append(n.children, new)
-	} else {
-		fmt.Printf("Could not find parent %s\n", parent)
 	}
 }
 
@@ -93,14 +57,19 @@ func orbitParse(line string) (string, string) {
 	return list[0], list[1]
 }
 
-func output(node *node) {
-	if node == nil {
-		return
+func sumAll(root *node) int {
+	if root == nil {
+		return 0
 	}
 
-	for _, child := range node.children {
-		output(child)
+	fmt.Printf("Sum %s: %d Children: %V\n", root.planet, root.depth, root.children)
+
+	sum := 0
+	for _, child := range root.children {
+		sum += sumAll(child)
 	}
+
+	return root.depth + sum
 }
 
 func main() {
@@ -113,28 +82,25 @@ func main() {
 		children: []*node{},
 	}
 
+	planets := []pair{}
 	for scanner.Scan() {
 		line := strings.TrimSuffix(scanner.Text(), "\n")
 		first, second := orbitParse(line)
 
-		fmt.Printf("Adding %s around %s\n", second, first)
-		AddChild(root, first, second)
+		planets = append(planets, pair{
+			left: first,
+			right: second,
+		})
 
-		// node, _ := getNode(root, first, 0)
-		// if node != nil {
-			// c := count(node)
-			// fmt.Printf("Count %s: %d\n", node.planet, c)
-			// fmt.Printf("Depth %d %s children: ", depth, node.planet)
-			// for _, c := range node.children {
-			// 	fmt.Printf("%s ", c.planet)
-			// }
-			// fmt.Println()
-		// }
+		//fmt.Printf("Adding %s around %s\n", second, first)
+		//AddChild(root, first, second)
 	}
 
-	fmt.Printf("-----\n")
-	printTree(root)
-	fmt.Printf("-----\n")
-	depth := getDepth(root, "G")
-	fmt.Printf("depth %d\n", depth)
+	for planet := range planets {
+	}
+
+	node, _ := getNode(root, "COM", 0)
+	fmt.Printf("Root: %v Child: %v Child: %v\n", node, node.children[0], node.children[0].children[0])
+	sum := sumAll(root)
+	fmt.Printf("Sum: %d\n", sum)
 }
