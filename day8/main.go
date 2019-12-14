@@ -72,6 +72,56 @@ func minElemsLayer(elem int, layers []layer) layer {
 	return minLayer
 }
 
+func addLayers(first, second layer) layer {
+	var result layer
+
+	for i, firstPixel := range first.pixels {
+		secondPixel := second.pixels[i]
+
+		if firstPixel == 2 {
+			result.pixels = append(result.pixels, secondPixel)
+		} else {
+			result.pixels = append(result.pixels, firstPixel)
+		}
+	}
+
+	return result
+}
+
+func combineLayers(layers []layer) layer {
+	var first layer
+	var result layer
+
+	for i := 0; i < len(layers) - 1; i++ {
+		if i == 0 {
+			first = layers[i]
+		} else {
+			first = result
+		}
+
+		second := layers[i + 1]
+
+		result = addLayers(first, second)
+	}
+
+	return result
+}
+
+func printLayer(layer layer) {
+	for h := 0; h < Height; h++ {
+		for w := 0; w < Width; w++ {
+			pixel := layer.pixels[h * Width + w]
+			if pixel == 0 {
+				fmt.Printf(" ")
+			} else {
+				fmt.Printf("#")
+			}
+		}
+
+		fmt.Println()
+	}
+}
+
 func main() {
 	data, _ := ioutil.ReadFile("input.txt")
 	niceData := strings.TrimSuffix(string(data), "\n")
@@ -84,4 +134,7 @@ func main() {
 	countOnes := countElems(1, maxLayer)
 	countTwos := countElems(2, maxLayer)
 	fmt.Printf("Ones x Twos = %d\n", countOnes * countTwos)
+
+	combined := combineLayers(layers)
+	printLayer(combined)
 }
