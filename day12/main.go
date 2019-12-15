@@ -1,8 +1,8 @@
 package main
 
 import (
+	"crypto/md5"
 	"crypto/sha256"
-	_ "crypto/sha256"
 	_ "encoding/gob"
 	"fmt"
 	"io/ioutil"
@@ -10,15 +10,36 @@ import (
 	"strings"
 )
 
+const Bodies = 4
+
 type universe struct {
-	moons [4]moon
+	moons [Bodies]moon
 }
 
 func (u *universe) hash() string {
 	mStr := fmt.Sprintf("%v", u)
-	result := fmt.Sprintf("%x", sha256.Sum256([]byte(mStr)))
+	result := fmt.Sprintf("%x", md5.Sum([]byte(mStr)))
 
 	return result
+}
+
+func (u *universe) energy() int {
+	total := 0
+	for _, m := range u.moons {
+		total += m.energy()
+	}
+	return total
+}
+
+func (u *universe) same(other universe) bool {
+	for i, b := range u.moons {
+		if b.x != other.moons[i].x || b.y != other.moons[i].y ||
+			b.z != other.moons[i].z {
+			return false
+		}
+	}
+
+	return true
 }
 
 type moon struct {
@@ -40,19 +61,23 @@ func (m *moon) energy() int {
 	return potential * kinetic
 }
 
-func (m *moon) gravitate(other moon) {
+func (m *moon) gravitateX(other *moon) {
 	if m.x > other.x {
 		m.vx--
 	} else if m.x < other.x {
 		m.vx++
 	}
+}
 
+func (m *moon) gravitateY(other *moon) {
 	if m.y > other.y {
 		m.vy--
 	} else if m.y < other.y {
 		m.vy++
 	}
+}
 
+func (m *moon) gravitateZ(other *moon) {
 	if m.z > other.z {
 		m.vz--
 	} else if m.z < other.z {
@@ -60,10 +85,28 @@ func (m *moon) gravitate(other moon) {
 	}
 }
 
-func (m *moon) move() {
+func (m *moon) gravitate(other *moon) {
+	m.gravitateX(other)
+	m.gravitateY(other)
+	m.gravitateZ(other)
+}
+
+func (m *moon) moveX() {
 	m.x += m.vx
+}
+
+func (m *moon) moveY() {
 	m.y += m.vy
+}
+
+func (m *moon) moveZ() {
 	m.z += m.vz
+}
+
+func (m *moon) move() {
+	m.moveX()
+	m.moveY()
+	m.moveZ()
 }
 
 func parse(data string) universe {
@@ -74,38 +117,73 @@ func parse(data string) universe {
 
 		fmt.Sscanf(line, "<x=%d, y=%d, z=%d>", &elem.x, &elem.y, &elem.z)
 		result.moons[i] = elem
-		//result.moons = append(result.moons, elem)
 	}
 
 	return result
 }
 
-func applyGravity(u universe) universe {
-	var result universe
-
-	for i, m1 := range u.moons {
+func applyGravityX(u *universe) {
+	for i, _ := range u.moons {
 		for _, m2 := range u.moons {
-			m1.gravitate(m2)
+			u.moons[i].gravitateX(&m2)
 		}
-
-		result.moons[i] = m1
-		//result.moons = append(result.moons, m1)
 	}
-
-	return result
 }
 
-func iterate(moons universe) universe {
-	gravityMoons := applyGravity(moons)
-	var result universe
-
-	for i, moon := range gravityMoons.moons {
-		moon.move()
-		result.moons[i] = moon
-		//result.moons = append(result.moons, moon)
+func applyGravityY(u *universe) {
+	for i, _ := range u.moons {
+		for _, m2 := range u.moons {
+			u.moons[i].gravitateY(&m2)
+		}
 	}
+}
 
-	return result
+func applyGravityZ(u *universe) {
+	for i, _ := range u.moons {
+		for _, m2 := range u.moons {
+			u.moons[i].gravitateZ(&m2)
+		}
+	}
+}
+
+func applyGravity(u *universe) {
+	for i, _ := range u.moons {
+		for _, m2 := range u.moons {
+			u.moons[i].gravitate(&m2)
+		}
+	}
+}
+
+func iterateX(moons *universe) {
+	applyGravityX(moons)
+
+	for i, _ := range moons.moons {
+		moons.moons[i].moveX()
+	}
+}
+
+func iterateY(moons *universe) {
+	applyGravityY(moons)
+
+	for i, _ := range moons.moons {
+		moons.moons[i].moveY()
+	}
+}
+
+func iterateZ(moons *universe) {
+	applyGravityZ(moons)
+
+	for i, _ := range moons.moons {
+		moons.moons[i].moveZ()
+	}
+}
+
+func iterate(moons *universe) {
+	applyGravity(moons)
+
+	for i, _ := range moons.moons {
+		moons.moons[i].move()
+	}
 }
 
 func printMoons(u universe) {
@@ -123,7 +201,7 @@ func printMoons(u universe) {
 }
 
 func main() {
-	data, _ := ioutil.ReadFile("lol.txt")
+	data, _ := ioutil.ReadFile("input.txt")
 	niceData := strings.TrimSuffix(string(data), "\n")
 
 	moons := parse(niceData)
@@ -131,25 +209,112 @@ func main() {
 	printMoons(moons)
 	fmt.Println()
 
-	visited := make(map[string]bool)
-	iterMoons := moons
-	iterations := 0
-	for {
-		iterMoons = iterate(iterMoons)
-		hash := iterMoons.hash()
-		if visited[hash] {
-			fmt.Printf("Iters %d\n", iterations)
-			return
-		}
+	xchan := make(chan int64, 10)
+	ychan := make(chan int64, 10)
+	zchan := make(chan int64, 10)
 
-		visited[hash] = true
-		iterations++
+	go func() {
+		xmoons := moons
+		var iterations int64
+		for {
+			iterateX(&xmoons)
+
+			if iterations % 1000000 == 0 {
+				fmt.Printf("X iters %d\n", iterations)
+			}
+
+			if xmoons.same(moons) {
+				xchan <- iterations
+			}
+
+			iterations++
+		}
+	}()
+
+	go func() {
+		ymoons := moons
+		var iterations int64
+		for {
+			iterateY(&ymoons)
+
+			if ymoons.same(moons) {
+				ychan <- iterations
+			}
+
+			iterations++
+		}
+	}()
+
+	go func() {
+		zmoons := moons
+		var iterations int64
+		for {
+			iterateZ(&zmoons)
+
+			if zmoons.same(moons) {
+				zchan <- iterations
+			}
+
+			iterations++
+		}
+	}()
+
+	xs := make(map[int64]bool)
+	ys := make(map[int64]bool)
+	zs := make(map[int64]bool)
+	//var xMatch []int64
+	//var yMatch []int64
+	//var zMatch []int64
+
+	for {
+		select {
+		case x := <-xchan:
+			xs[x] = true
+
+			if ys[x] && zs[x] {
+				fmt.Printf("X Match %d\n", x)
+				return
+			}
+		case y := <- ychan:
+			//fmt.Printf("Y Match: %d\n", y)
+			ys[y] = true
+			if xs[y] && zs[y] {
+				fmt.Printf("Y Match %d\n", y)
+				return
+			}
+			//yMatch = append(yMatch, y)
+		case z := <- zchan:
+			zs[z] = true
+			if ys[z] && xs[z] {
+				fmt.Printf("Z Match %d\n", z)
+				return
+			}
+			//fmt.Printf("Z Match: %d\n", z)
+			//zMatch = append(zMatch, z)
+		}
 	}
 
+	//firstState := moons.hash()
+	//visited := make(map[string]bool)
 	//iterMoons := moons
-	//for i := 0; i < 1000; i++ {
-	//	iterMoons = iterate(iterMoons)
-	//	printMoons(iterMoons)
-	//	fmt.Println()
+	//iterations := 0
+	//for {
+	//	iterateX(&iterMoons)
+		//hashState := iterMoons.hash()
+
+		//if visited[hash] {
+		//	fmt.Printf("Iters %d\n", iterations)
+		//	return
+		//}
+	//	if iterMoons == moons {
+	//		xMatch = append(xMatch, iterMoons)
+	//		fmt.Printf("Universe: %t\nIters: %d\n", iterMoons, iterations)
+	//	}
+	//	if iterations % 1000000 == 0 {
+	//		fmt.Printf("Iters: %d\n", iterations)
+	//	}
+
+		//visited[hash] = true
+	//	iterations++
 	//}
 }
