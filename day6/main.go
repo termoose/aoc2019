@@ -28,17 +28,6 @@ func orbitParse(line string) pair {
 	return pair{list[0], list[1]}
 }
 
-func traverse(root string, tree universe, count int) int {
-	total := count
-	node := tree.planets[root]
-
-	for c, _ := range node.child {
-		total += traverse(c, tree, count + 1)
-	}
-
-	return total
-}
-
 func path(tree universe, current, node string, trail []string) []string {
 	trail = append(trail, current)
 
