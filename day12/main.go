@@ -12,6 +12,27 @@ import (
 
 const Bodies = 4
 
+// greatest common divisor (GCD) via Euclidean algorithm
+func GCD(a, b int) int {
+	for b != 0 {
+		t := b
+		b = a % b
+		a = t
+	}
+	return a
+}
+
+// find Least Common Multiple (LCM) via GCD
+func LCM(a, b int, integers ...int) int {
+	result := a * b / GCD(a, b)
+
+	for i := 0; i < len(integers); i++ {
+		result = LCM(result, integers[i])
+	}
+
+	return result
+}
+
 type universe struct {
 	moons [Bodies]moon
 }
@@ -209,59 +230,69 @@ func main() {
 	printMoons(moons)
 	fmt.Println()
 
-	xchan := make(chan int64, 10)
-	ychan := make(chan int64, 10)
-	zchan := make(chan int64, 10)
+	xchan := make(chan int)
+	ychan := make(chan int)
+	zchan := make(chan int)
 
 	go func() {
 		xmoons := moons
-		var iterations int64
+		iterations := 0
 		for {
 			iterateX(&xmoons)
 
-			if iterations % 1000000 == 0 {
-				fmt.Printf("X iters %d\n", iterations)
-			}
-
-			if xmoons.same(moons) {
-				xchan <- iterations
+			if iterations % 1000 == 0 {
+				//fmt.Printf("X iters %d\n", iterations)
 			}
 
 			iterations++
+			//if xmoons.same(moons) {
+			if xmoons == moons {
+				xchan <- iterations
+				return
+			}
+
 		}
 	}()
 
 	go func() {
 		ymoons := moons
-		var iterations int64
+		iterations := 0
 		for {
 			iterateY(&ymoons)
 
-			if ymoons.same(moons) {
+			iterations++
+			//if ymoons.same(moons) {
+			if ymoons == moons {
 				ychan <- iterations
+
+				return
 			}
 
-			iterations++
 		}
 	}()
 
 	go func() {
 		zmoons := moons
-		var iterations int64
+		iterations := 0
 		for {
 			iterateZ(&zmoons)
 
-			if zmoons.same(moons) {
+			iterations++
+			//if zmoons.same(moons) {
+			if zmoons == moons {
 				zchan <- iterations
+				return
 			}
 
-			iterations++
 		}
 	}()
 
-	xs := make(map[int64]bool)
-	ys := make(map[int64]bool)
-	zs := make(map[int64]bool)
+	xCycle := 0
+	yCycle := 0
+	zCycle := 0
+	//xs := make(map[int64]bool)
+	//ys := make(map[int64]bool)
+	//zs := make(map[int64]bool)
 	//var xMatch []int64
 	//var yMatch []int64
 	//var zMatch []int64
@@ -269,28 +300,37 @@ func main() {
 	for {
 		select {
 		case x := <-xchan:
-			xs[x] = true
-
-			if ys[x] && zs[x] {
-				fmt.Printf("X Match %d\n", x)
-				return
-			}
+			xCycle = x
+			//xs[x] = true
+			//
+			//if ys[x] && zs[x] {
+			fmt.Printf("X Match %d\n", x)
+			//	return
+			//}
 		case y := <- ychan:
 			//fmt.Printf("Y Match: %d\n", y)
-			ys[y] = true
-			if xs[y] && zs[y] {
-				fmt.Printf("Y Match %d\n", y)
-				return
-			}
+			yCycle = y
+			//ys[y] = true
+			//if xs[y] && zs[y] {
+			fmt.Printf("Y Match %d\n", y)
+			//	return
+			//}
 			//yMatch = append(yMatch, y)
 		case z := <- zchan:
-			zs[z] = true
-			if ys[z] && xs[z] {
-				fmt.Printf("Z Match %d\n", z)
-				return
-			}
+			zCycle = z
+			//zs[z] = true
+			//if ys[z] && xs[z] {
+			fmt.Printf("Z Match %d\n", z)
+			//	return
+			//}
 			//fmt.Printf("Z Match: %d\n", z)
 			//zMatch = append(zMatch, z)
+		}
+
+		if xCycle != 0 && yCycle != 0 && zCycle != 0 {
+			fmt.Printf("%d %d %d\n", xCycle, yCycle, zCycle)
+			fmt.Printf("LCM: %d\n", LCM(xCycle, yCycle, zCycle))
+			return
 		}
 	}
 
